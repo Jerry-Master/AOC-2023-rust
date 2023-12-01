@@ -64,8 +64,13 @@ fn calib_value(line: &str) -> Option<u32> {
     let mut first_digit: u32 = 10;
     let mut last_digit: u32 = 10;
     let dict: HashMap<String, u32> = HashMap::from([
-        (String::from("one"), 1), (String::from("two"), 2), (String::from("three"), 3), (String::from("four"), 4), (String::from("five"), 5),
-        (String::from("six"), 6), (String::from("seven"), 7), (String::from("eight"), 8), (String::from("nine"), 9)
+        (String::from("one"), 1), (String::from("two"), 2), 
+        (String::from("three"), 3), (String::from("four"), 4), 
+        (String::from("five"), 5), (String::from("seight"), 8),
+        (String::from("six"), 6), (String::from("seven"), 7), 
+        (String::from("eight"), 8), (String::from("nine"), 9),
+        (String::from("onine"), 9), (String::from("ninine"), 9),
+        (String::from("fone"), 1)
     ]);
     let mut trie = Trie::new();
     trie.insert("one");
@@ -77,8 +82,11 @@ fn calib_value(line: &str) -> Option<u32> {
     trie.insert("seven");
     trie.insert("eight");
     trie.insert("nine");
+    trie.insert("seight");
+    trie.insert("onine");
+    trie.insert("fone");
+    trie.insert("ninine");
     let mut current = &trie.root;
-    let mut prev_char = '-';
     for char in line.chars() {
         if char.is_digit(10) {
             if first_digit == 10 {
@@ -106,22 +114,21 @@ fn calib_value(line: &str) -> Option<u32> {
                 // println!("{}", char);
                 // Character not found, reset to the root or to prev char
                 current = &trie.root;
-                if let Some(prev_node) = current.children.get(&prev_char) {
-                    if let Some(next_node) = prev_node.children.get(&char) {
-                        current = next_node;
-                    } else {
-                        current = &trie.root;
-                    }
-                } else {
-                    current = &trie.root;
-                }
+                // if let Some(prev_node) = current.children.get(&prev_char) {
+                //     if let Some(next_node) = prev_node.children.get(&char) {
+                //         current = next_node;
+                //     } else {
+                //         current = &trie.root;
+                //     }
+                // } else {
+                //     current = &trie.root;
+                // }
                 // Start new trie with this char
                 if let Some(next_node) = current.children.get(&char) {
                     current = next_node;
                 }
             }
         }
-        prev_char = char;
     }
     // println!("{}, {}", first_digit, last_digit);
     return Some(first_digit * 10 + last_digit);
