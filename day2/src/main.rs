@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use clap::Parser;
+use std::cmp::max;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, help_template = "\
@@ -24,56 +25,42 @@ fn main() -> io::Result<()>{
 
     let mut sum = 0;
     for line in reader.lines() {
-        let (id, is_possible) = analyze(&line?);
-        if is_possible {
-            sum += id;
-        }
+        let power = analyze(&line?);
+        sum += power;
     }
     println!("{}", sum);
     Ok(())
 }
 
 
-fn analyze(line: &String) -> (u32, bool) {
+fn analyze(line: &String) -> u32 {
     let game: Vec<&str> = line.split(": ").collect();
-    let id = get_id(game[0]);
-    let mut is_possible = true;
+    let mut rm = 0;
+    let mut gm = 0;
+    let mut bm = 0;
     for play in game[1].split("; "){
-        is_possible = is_possible && check_play(play);
-        if !is_possible {
-            return (id, false);
-        }
+        let (r, g, b) = count_play(play);
+        rm = max(r, rm);
+        gm = max(g, gm);
+        bm = max(b, bm);
     }
-    (id, is_possible)
+    rm * gm * bm
 }
 
 
-fn check_play(play: &str) -> bool {
+fn count_play(play: &str) -> (u32, u32, u32) {
+    let mut r = 0; let mut g = 0; let mut b = 0;
     for ball in play.split(", ") {
         let split: Vec<_> = ball.split(' ').collect();
         let num = split[0].parse::<u32>().unwrap();
         let color = split[1];
-        if !check_ball(num, color) {
-            return false;
+        if color == "red" {
+            r = num;
+        } else if color == "green" {
+            g = num;
+        } else {
+            b = num;
         }
     }
-    true
-}
-
-
-fn check_ball(num: u32, color: &str) -> bool {
-    if color == "red" {
-        return num <= 12;
-    }
-    if color == "green" {
-        return num <= 13;
-    }
-    return num <= 14;
-}
-
-
-fn get_id(text: &str) -> u32 {
-    let text_id: Vec<_> = text.split(' ').collect();
-    let text_id = text_id[text_id.len()-1];
-    return text_id.parse::<u32>().unwrap();
+    (r, g, b)
 }
