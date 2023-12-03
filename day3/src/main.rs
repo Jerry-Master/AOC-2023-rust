@@ -43,7 +43,7 @@ fn insert(board: &mut Vec<Vec<char>>, line: &str){
 
 
 fn add_part_numbers(board: &Vec<Vec<char>>) -> u32{
-    let mut sum = 0;
+    let mut gears: Vec<(usize, usize, u32)> = vec![];  // num, row, col of gear
     for (row_num, row) in board.iter().enumerate() {
         let mut curr_num = String::from("");
         let mut start_col = 0;
@@ -54,22 +54,40 @@ fn add_part_numbers(board: &Vec<Vec<char>>) -> u32{
                 }
                 curr_num.push(*value);
                 if i == row.len()-1 {  // The case of a number right at the end of line
-                    if check_symbol(board, row_num, start_col, i){
-                        sum += curr_num.parse::<u32>().unwrap();
+                    let (is_gear, row, col) = check_gear(board, row_num, start_col, i);
+                    if is_gear {
+                        gears.push((row, col, curr_num.parse::<u32>().unwrap()));
                     }
                 }
             } else if curr_num.len() > 0 {
-                if check_symbol(board, row_num, start_col, i-1){
-                    sum += curr_num.parse::<u32>().unwrap();
+                let (is_gear, row, col) = check_gear(board, row_num, start_col, i-1);
+                if is_gear{
+                    gears.push((row, col, curr_num.parse::<u32>().unwrap()));
                 }
                 curr_num = String::from("");
             }
         }
     }
-    return sum;
+    gears.sort_unstable();
+    let mut num_equal = 0;
+    let mut sum_ratios = 0;
+    for i in 1..gears.len() {
+        if gears[i-1].0 == gears[i].0 && gears[i-1].1 == gears[i].1 {
+            num_equal += 1;
+            if i == gears.len()-1 && num_equal == 1 {
+                sum_ratios += gears[i].2 * gears[i-1].2;
+            }
+        } else  {
+            if num_equal == 1 {
+                sum_ratios += gears[i-1].2 * gears[i-2].2;
+            }
+            num_equal = 0;
+        }
+    }
+    return sum_ratios;
 }
 
-fn check_symbol(board: &Vec<Vec<char>>, row_num: usize, start_col: usize, end_col: usize) -> bool {
+fn check_gear(board: &Vec<Vec<char>>, row_num: usize, start_col: usize, end_col: usize) -> (bool, usize, usize) {
     let mut l_row = 0;
     if row_num > 0 {
         l_row = row_num - 1;
@@ -83,12 +101,12 @@ fn check_symbol(board: &Vec<Vec<char>>, row_num: usize, start_col: usize, end_co
             if i == row_num && j != l_col && j != end_col + 1 {
                 continue;
             }
-            if is_valid(board, i, j) && board[i][j] != '.' && !board[i][j].is_ascii_digit() {
-                return true;
+            if is_valid(board, i, j) && board[i][j] == '*' {
+                return (true, i, j);
             }
         }
     }
-    false
+    (false, 0, 0)
 }
 
 
