@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use clap::Parser;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, help_template = "\
@@ -24,8 +24,25 @@ fn main() -> io::Result<()>{
     let reader = BufReader::new(file);
 
     let mut points = 0;
-    for line in reader.lines() {
-        points += count_points(&line?);
+    let mut card_count: HashMap<u32, u32> = HashMap::new();
+    for (i, line) in reader.lines().enumerate() {
+        let i = i as u32;
+        let matches = count_points(&line?);
+        if !card_count.contains_key(&i) {
+            card_count.insert(i, 1);
+        }
+        let num_cards = *card_count.get(&i).unwrap();
+        for k in i+1..i+matches+1 {
+            if !card_count.contains_key(&k) {
+                card_count.insert(k, 1);
+            }
+            if let Some(value) = card_count.get_mut(&k){
+                *value += num_cards;
+            }
+        }
+    }
+    for (_, val) in card_count.iter() {
+        points += val;
     }
     println!("{}", points);
     Ok(())
@@ -36,10 +53,11 @@ fn count_points(line: &str) -> u32 {
     let mut own_nums = HashSet::new();
     read_input(line, &mut win_nums, &mut own_nums);
     let matches = count_matches(&win_nums, &own_nums);
-    if matches == 0 {
-        return 0;
-    }
-    return 1 << (matches - 1);
+    return matches;
+    // if matches == 0 {
+    //     return 0;
+    // }
+    // return 1 << (matches - 1);
 }
 
 
