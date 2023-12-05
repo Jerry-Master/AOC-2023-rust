@@ -65,9 +65,9 @@ impl Map {
                             .map(|x| x.parse::<u64>().unwrap())
                             .collect();
         self._push(Range { 
-            src_start: range_values[1],
-            src_end: range_values[1] + range_values[2] - 1,
-            dst_start: range_values[0]
+            dst_start: range_values[1],
+            src_end: range_values[0] + range_values[2] - 1,
+            src_start: range_values[0]
         });
     }
 
@@ -112,30 +112,37 @@ fn main() -> io::Result<()>{
     let file = File::open(args.input_path)?;
     let reader = BufReader::new(file);
 
-    let mut seeds = Vec::<u64>::new();
-    let mut seed2soil = Map::new();
-    let mut soil2fert = Map::new();
-    let mut fert2water = Map::new();
-    let mut water2light = Map::new();
-    let mut light2temp = Map::new();
-    let mut temp2hum = Map::new();
-    let mut hum2loc = Map::new();
+    let mut seeds = Map::new();
+    let mut soil2seed = Map::new();
+    let mut fert2soil = Map::new();
+    let mut water2fert = Map::new();
+    let mut light2water = Map::new();
+    let mut temp2light = Map::new();
+    let mut hum2temp = Map::new();
+    let mut loc2hum = Map::new();
     let mappings = [
-        &mut seed2soil, &mut soil2fert, &mut fert2water,
-        &mut water2light, &mut light2temp, &mut temp2hum,
-        &mut hum2loc
+        &mut soil2seed, &mut fert2soil, &mut water2fert,
+        &mut light2water, &mut temp2light, &mut hum2temp,
+        &mut loc2hum
     ];
     let mut idx = 0;
     // Read
     for line in reader.lines() {
         let line = line?;
         if seeds.len() == 0 {
-            seeds = line
+            let seed_ranges: Vec<u64> = line
                     .split(": ")
                     .nth(1).unwrap()
                     .split_whitespace()
                     .map(|x| x.parse::<u64>().unwrap())
                     .collect();
+            for i in 0..seed_ranges.len()/2 {
+                seeds._push(Range{
+                    src_start: seed_ranges[2*i+0],
+                    src_end: seed_ranges[2*i+0] + seed_ranges[2*i+1] - 1,
+                    dst_start: 0
+                });
+            }
         } else if !line.is_empty() {
             if line.chars().nth(0).unwrap().is_ascii_digit() {
                 mappings[idx-1].push(&line);
@@ -145,26 +152,46 @@ fn main() -> io::Result<()>{
         }
     }
     // Sort ranges for binary search
-    seed2soil.sort();
-    soil2fert.sort();
-    fert2water.sort();
-    water2light.sort();
-    light2temp.sort();
-    temp2hum.sort();
-    hum2loc.sort();
+    seeds.sort();
+    soil2seed.sort();
+    fert2soil.sort();
+    water2fert.sort();
+    light2water.sort();
+    temp2light.sort();
+    hum2temp.sort();
+    loc2hum.sort();
     // Traverse mappings
-    let mut locations = Vec::<u64>::new();
-    for seed in seeds {
-        let soil = seed2soil.map(seed);
-        let fert = soil2fert.map(soil);
-        let water = fert2water.map(fert);
-        let light = water2light.map(water);
-        let temp = light2temp.map(light);
-        let hum = temp2hum.map(temp);
-        let loc = hum2loc.map(hum);
-        locations.push(loc);
+    // println!("{:?}", seeds);
+    let max = 10000000000;
+    for loc in 1..max {
+        let hum = loc2hum.map(loc);
+        // println!("{}, {}", loc, hum);
+        let temp = hum2temp.map(hum);
+        // println!("{}, {}", hum, temp);
+        let light = temp2light.map(temp);
+        // println!("{}, {}", temp, light);
+        let water = light2water.map(light);
+        // println!("{}, {}", light, water);
+        let fert = water2fert.map(water);
+        // println!("{}, {}", water, fert);
+        let soil = fert2soil.map(fert);
+        // println!("{}, {}", fert, soil);
+        let seed = soil2seed.map(soil);
+        // println!("{}, {}", soil, seed);
+        let seed_range = seeds.find_interval(seed);
+        // println!("seed {}", seed);
+        if seed_range.src_start != seed_range.src_end {
+            println!("{}", loc);
+            break;
+        }
     }
     // Find minimum
-    println!("{:?}", locations.iter().min().unwrap());
+    // println!("{:?}", seed2soil);
+    // println!("{:?}", soil2fert);
+    // println!("{:?}", fert2water);
+    // println!("{:?}", water2light);
+    // println!("{:?}", light2temp);
+    // println!("{:?}", temp2hum);
+    // println!("{:?}", hum2loc);
     Ok(())
 }
