@@ -28,15 +28,15 @@ fn main() -> io::Result<()>{
         .split(':')
         .nth(1).unwrap()
         .split_whitespace()
-        .map(|x| x.parse::<u32>().unwrap())
-        .collect::<Vec<u32>>();
+        .map(|x| x.parse::<u64>().unwrap())
+        .collect::<Vec<u64>>();
     let dists = lines
         .next().unwrap()
         .split(':')
         .nth(1).unwrap()
         .split_whitespace()
-        .map(|x| x.parse::<u32>().unwrap())
-        .collect::<Vec<u32>>();
+        .map(|x| x.parse::<u64>().unwrap())
+        .collect::<Vec<u64>>();
     let mut res = 1;
     for (t, d) in izip!(times, dists) {
         res *= count_ways(t as f64, d as f64);
@@ -46,8 +46,8 @@ fn main() -> io::Result<()>{
 }
 
 
-fn count_ways(t: f64, d: f64) -> u32 {
-    let upper = ((t + (t * t - 4. * d).sqrt()) / 2. - 0.000001).floor() as u32;
-    let lower = ((t - (t * t - 4. * d).sqrt()) / 2. + 0.000001).ceil() as u32;
+fn count_ways(t: f64, d: f64) -> u64 {
+    let upper = ((t + (t * t - 4. * d).sqrt()) / 2. - 0.000001).floor() as u64;
+    let lower = ((t - (t * t - 4. * d).sqrt()) / 2. + 0.000001).ceil() as u64;
     return upper - lower + 1;
 }
