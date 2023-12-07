@@ -32,7 +32,7 @@ fn cmp(a: char, b: char) -> Ordering {
     }
     let map = HashMap::from([
         ('A', 15), ('K', 14), ('Q', 13),
-        ('J', 12), ('T', 11), ('9', 10),
+        ('J', 2), ('T', 11), ('9', 10),
         ('8', 9), ('7', 8), ('6', 7),
         ('5', 6), ('4', 5), ('3', 4),
         ('2', 3),
@@ -119,8 +119,29 @@ impl Hand {
 
 
     fn five_equal(&self) -> bool {
-        return self.first == self.second && self.second == self.third &&
-            self.third == self.fourth && self.fourth == self.fifth;
+        let mut freqs = HashMap::from(
+            [
+                ('A', 0), ('K', 0), ('Q', 0),
+                ('J', 0), ('T', 0), ('9', 0),
+                ('8', 0), ('7', 0), ('6', 0),
+                ('5', 0), ('4', 0), ('3', 0),
+                ('2', 0),
+            ]
+        );
+        *freqs.entry(self.first).or_insert(0) += 1;
+        *freqs.entry(self.second).or_insert(0) += 1;
+        *freqs.entry(self.third).or_insert(0) += 1;
+        *freqs.entry(self.fourth).or_insert(0) += 1;
+        *freqs.entry(self.fifth).or_insert(0) += 1;
+        for (k, v) in &freqs {
+            if v + freqs[&'J'] == 5 && *k != 'J' {
+                return true;
+            }
+            if *v == 5 {
+                return true;
+            }
+        }
+        false
     }
 
 
@@ -139,8 +160,11 @@ impl Hand {
         *freqs.entry(self.third).or_insert(0) += 1;
         *freqs.entry(self.fourth).or_insert(0) += 1;
         *freqs.entry(self.fifth).or_insert(0) += 1;
-        for v in freqs.into_values() {
-            if v == 4 {
+        for (k, v) in &freqs {
+            if v + freqs[&'J'] == 4 && *k != 'J' {
+                return true;
+            }
+            if *v == 4 {
                 return true;
             }
         }
@@ -163,8 +187,11 @@ impl Hand {
         *freqs.entry(self.third).or_insert(0) += 1;
         *freqs.entry(self.fourth).or_insert(0) += 1;
         *freqs.entry(self.fifth).or_insert(0) += 1;
-        for v in freqs.into_values() {
-            if v == 3 {
+        for (k, v) in &freqs {
+            if v + freqs[&'J'] == 3 && *k != 'J' {
+                return true;
+            }
+            if *v == 3 {
                 return true;
             }
         }
@@ -188,9 +215,16 @@ impl Hand {
         *freqs.entry(self.fourth).or_insert(0) += 1;
         *freqs.entry(self.fifth).or_insert(0) += 1;
         let mut pairs = 0;
-        for v in freqs.into_values() {
-            if v >= 2 {
+        for (k, v) in &freqs {
+            if *v >= 2 && *k != 'J' {
                 pairs += 1;
+            }
+        }
+        if pairs == 0 {
+            for (k, v) in &freqs {
+                if *v > 0 && *k == 'J' {
+                    pairs = 1;
+                }
             }
         }
         return pairs;
