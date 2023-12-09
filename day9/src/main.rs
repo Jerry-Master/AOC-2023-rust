@@ -37,16 +37,18 @@ fn main() -> io::Result<()>{
 
 fn compute_next(nums: &mut Vec<i32>) -> i32 {
     let next_diff = nums;
-    let mut last_values = vec![];
+    let mut first_values = vec![];
+    let mut sign = 1;
     while !all_zeros(next_diff){
-        last_values.push(next_diff[next_diff.len()-1]);
+        first_values.push(next_diff[0] * sign);
+        sign *= -1;
         let diffs: Vec<i32> = next_diff
             .windows(2)
             .map(|window| window[1] - window[0])
             .collect();
         *next_diff = diffs;
     }
-    return last_values
+    return first_values
         .into_iter()
         .fold(0, |acc, x| acc + x);
 }
