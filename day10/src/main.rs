@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use std::vec;
 use clap::Parser;
-use std::cmp::max;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, help_template = "\
@@ -18,6 +17,7 @@ struct Args {
     input_path: String,
 }
 
+#[derive(Copy, Clone, Debug)]
 enum Dir {
     North,
     East,
@@ -45,16 +45,124 @@ fn main() -> io::Result<()>{
         map[n-1].push('.');
     }
     map.push(vec!['.'; m + 2]);
-    // println!("{:?}", map);
     let start = get_start(&map);
-    let loop_len = get_loop_len(&map, &start);
-    println!("{}", loop_len / 2);
+    let (loop_dir1, loop_dir2) = get_loop_dir(&map, &start);
+    clean_loop(&mut map, &start, loop_dir1);
+    mark_start(&mut map, &start, loop_dir1, loop_dir2);
+    mark_inside(&mut map);
+    let res = count_inside(&map);
+    for row in map {
+        println!("{:?}", row.into_iter().collect::<String>());
+    }
+    println!("{}", res);
     Ok(())
 }
 
 
-fn get_loop_len(map: &Vec<Vec<char>>, start: &(usize, usize)) -> u32 {
+fn count_inside(map: &Vec<Vec<char>>) -> u32 {
+    map
+        .iter()
+        .map(|x| x.iter().filter(|&&y| y == 'I').count() as u32)
+        .fold(0, |acc, x| acc + x)
+}
+
+
+fn mark_inside(map: &mut Vec<Vec<char>>) {
+    for i in 0..map.len() {
+        for j in 0..map[0].len() {
+            if map[i][j] == '.' {
+                map[i][j] = check_inside(map, &(i, j));
+            }
+        }
+    }
+}
+
+
+fn check_inside(map: &Vec<Vec<char>>, pos: &(usize, usize)) -> char {
+    let mut crosses = 0;
+    let mut is_L = false;
+    let mut is_J = false;
+    let mut curr = pos.clone();
+    while map[curr.0][curr.1] != 'I' && map[curr.0][curr.1] != 'O' {
+        curr = avance(&curr, Dir::North);
+        match map[curr.0][curr.1] {
+            '-' => crosses += 1,
+            'L' => is_L = true,
+            'J' => is_J = true,
+            '7' => {
+                if is_L { crosses += 1; is_L = false; }
+                else { is_J = false; }
+            },
+            'F' => {
+                if is_J { crosses += 1; is_J = false; }
+                else { is_L = false; }
+            },
+            _ => {},
+        };
+    }
+    match crosses % 2 {
+        0 => map[curr.0][curr.1],
+        1 => match map[curr.0][curr.1] {
+            'I' => 'O',
+            'O' => 'I',
+            _ => panic!(),
+        },
+        _ => panic!()
+    }
+}
+
+
+fn mark_start(map: &mut Vec<Vec<char>>, start: &(usize, usize), loop_dir1: Dir, loop_dir2: Dir) {
+    map[start.0][start.1] = match (
+        loop_dir1, loop_dir2
+    ) {
+        (Dir::North, Dir::North) => '|',
+        (Dir::North, Dir::East) => 'J',
+        (Dir::North, Dir::West) => 'L',
+        (Dir::South, Dir::South) => '|',
+        (Dir::South, Dir::East) => '7',
+        (Dir::South, Dir::West) => 'F',
+        (Dir::East, Dir::East) => '-',
+        (Dir::East, Dir::North) => 'F',
+        (Dir::East, Dir::South) => 'L',
+        (Dir::West, Dir::West) => '-',
+        (Dir::West, Dir::North) => '7',
+        (Dir::West, Dir::South) => 'J',
+        _ => panic!(),
+    };
+}
+
+
+fn clean_loop(map: &mut Vec<Vec<char>>, start: &(usize, usize), loop_dir: Dir) {
+    let mut clean = vec![vec!['.'; map[0].len()]; map.len()];
+    let mut vis: Vec<Vec<bool>> = vec![vec![false; map[0].len()]; map.len()];
+    // println!("{:?}", vis);
+    let mut u = start.clone();
+    u = avance(&u, loop_dir);
+    vis[start.0][start.1] = true;
+    while u != *start {
+        clean[u.0][u.1] = map[u.0][u.1];
+        // println!("{:?}", u);
+        if map[u.0][u.1] == '.' { panic!(); }
+        vis[u.0][u.1] = true;
+        (u, _) = get_next(&map, &vis, &u);
+    }
+    for i in 0..map.len() {
+        clean[i][0] = 'O';
+        clean[i][map[0].len()-1] = 'O';
+    }
+    for j in 0..map[0].len() {
+        clean[0][j] = 'O';
+        clean[map.len()-1][j] = 'O';
+    }
+    *map = clean;
+}
+
+
+fn get_loop_dir(map: &Vec<Vec<char>>, start: &(usize, usize)) -> (Dir, Dir) {
     let mut max_len: u32 = 0;
+    let mut max_dir: Dir = Dir::North;
+    let mut other_dir: Dir = Dir::North;
     for dir in [Dir::North, Dir::East, Dir::West, Dir::South] {
         let mut len = 1;
         let mut vis: Vec<Vec<bool>> = vec![vec![false; map[0].len()]; map.len()];
@@ -62,53 +170,60 @@ fn get_loop_len(map: &Vec<Vec<char>>, start: &(usize, usize)) -> u32 {
         let mut u = start.clone();
         u = avance(&u, dir);
         vis[start.0][start.1] = true;
+        let mut aux_dir: Dir = Dir::North;
         while u != *start {
             // println!("{:?}", u);
             if map[u.0][u.1] == '.' { len = 0; break; }
             vis[u.0][u.1] = true;
-            u = get_next(&map, &vis, &u);
+            (u, aux_dir) = get_next(&map, &vis, &u);
             len += 1;
         }
-        max_len = max(max_len, len);
+        if len > max_len {
+            max_len = len;
+            max_dir = dir;
+            other_dir = aux_dir;
+        }
     }
-    return max_len;
+    return (max_dir, other_dir);
 }
 
 
-fn get_next(map: &Vec<Vec<char>>, vis: &Vec<Vec<bool>>, u: &(usize, usize)) -> (usize, usize) {
+fn get_next(map: &Vec<Vec<char>>, vis: &Vec<Vec<bool>>, u: &(usize, usize)) -> ((usize, usize), Dir) {
     let pipe = map[u.0][u.1];
-    let (u1, u2);
+    let (dir1, dir2);
     match pipe {
         '|' => {
-            u1 = avance(u, Dir::North);
-            u2 = avance(u, Dir::South);
+            dir1 = Dir::North;
+            dir2 = Dir::South;
         },
         '-' => {
-            u1 = avance(u, Dir::East);
-            u2 = avance(u, Dir::West);
+            dir1 = Dir::East;
+            dir2 = Dir::West;
         },
         'L' => {
-            u1 = avance(u, Dir::North);
-            u2 = avance(u, Dir::East);
+            dir1 = Dir::North;
+            dir2 = Dir::East;
         },
         'J' => {
-            u1 = avance(u, Dir::North);
-            u2 = avance(u, Dir::West);
+            dir1 = Dir::North;
+            dir2 = Dir::West;
         },
         '7' => {
-            u1 = avance(u, Dir::West);
-            u2 = avance(u, Dir::South);
+            dir1 = Dir::West;
+            dir2 = Dir::South;
         },
         'F' => {
-            u1 = avance(u, Dir::East);
-            u2 = avance(u, Dir::South);
+            dir1 = Dir::East;
+            dir2 = Dir::South;
         },
         _ => panic!(),
     };
-    if !vis[u1.0][u1.1] { return u1; }
-    if !vis[u2.0][u2.1] { return u2; }
-    if map[u1.0][u1.1] == 'S' { return u1; }
-    if map[u2.0][u2.1] == 'S' { return u2; }
+    let u1 = avance(u, dir1);
+    let u2 = avance(u, dir2);
+    if !vis[u1.0][u1.1] { return (u1, dir1); }
+    if !vis[u2.0][u2.1] { return (u2, dir2); }
+    if map[u1.0][u1.1] == 'S' { return (u1, dir1); }
+    if map[u2.0][u2.1] == 'S' { return (u2, dir2); }
     panic!();
 }
 
