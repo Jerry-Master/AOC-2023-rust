@@ -26,33 +26,58 @@ fn main() -> io::Result<()> {
     let mut board = Vec::<Vec<char>>::new();
     for line in reader.lines() {
         let line = line?;
-        if all_dots(&line) {
-            board.push(line.chars().collect());
-        }
         board.push(line.chars().collect());
     }
-    duplicate_cols(&mut board);
+    let dot_rows = get_dot_rows(&board);
+    let dot_cols = get_dot_cols(&board);
     let galaxies = get_galaxies(&board);
-    let distances = get_distances(&galaxies);
+    let distances = get_distances(&galaxies, &dot_rows, &dot_cols);
     let sum = distances.into_iter().fold(0, |acc, x| acc + x);
     println!("{}", sum);
-    // for line_vec in board {
-    //     println!("{}", line_vec.into_iter().collect::<String>())
-    // }
     Ok(())
 }
 
 
-fn get_distances(galaxies: &Vec<(usize, usize)>) -> Vec<usize> {
+fn get_dot_rows(board: &Vec<Vec<char>>) -> Vec<usize> {
+    let mut res = Vec::<usize>::new();
+    for (i, row) in board.into_iter().enumerate() {
+        if all_dots(&row.into_iter().collect()) {
+            res.push(i);
+        }
+    }
+    return res;
+}
+
+
+fn get_dot_cols(board: &Vec<Vec<char>>) -> Vec<usize> {
+    return get_dot_rows(&transpose(board));
+}
+
+
+fn get_distances(galaxies: &Vec<(usize, usize)>, dot_rows: &Vec<usize>, dot_cols: &Vec<usize>) -> Vec<usize> {
     let mut res = Vec::<usize>::new();
     for (i, &x1) in galaxies.into_iter().enumerate() {
         for (j, &x2) in galaxies.into_iter().enumerate() {
             if i < j {
-                res.push(((x1.0 as i32 - x2.0 as i32).abs() + (x1.1 as i32 - x2.1 as i32).abs()) as usize);
+                let cross_rows = count_crosses(x1.0, x2.0, dot_rows);
+                let cross_cols = count_crosses(x1.1, x2.1, dot_cols);
+                res.push(
+                    (
+                        (x1.0 as i32 - x2.0 as i32).abs() 
+                        + (x1.1 as i32 - x2.1 as i32).abs()
+                        + cross_rows * 999999 + cross_cols * 999999
+                    ) as usize);
             }
         }
     }
     return res;
+}
+
+
+fn count_crosses(x1: usize, x2: usize, list: &Vec<usize>) -> i32 {
+    if x1 == x2 { return 0; }
+    if x1 > x2 { return count_crosses(x2, x1, list); }
+    list.into_iter().filter(|&&x| x1 < x && x < x2).count() as i32
 }
 
 
@@ -66,19 +91,6 @@ fn get_galaxies(board: &Vec<Vec<char>>) -> Vec<(usize, usize)> {
         }
     }
     return res;
-}
-
-
-fn duplicate_cols(board: &mut Vec<Vec<char>>) {
-    let transposed = transpose(board);
-    let mut new = Vec::<Vec<char>>::new();
-    for row in &transposed {
-        if all_dots(&row.into_iter().collect()) {
-            new.push(row.clone());
-        }
-        new.push(row.clone());
-    }
-    *board = transpose(&new);
 }
 
 
