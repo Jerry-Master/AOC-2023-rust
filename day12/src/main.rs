@@ -31,85 +31,85 @@ fn main() -> io::Result<()>{
 }
  
  
-fn count_damaged(line: &String) -> u32 {
+fn count_damaged(line: &String) -> u64 {
     let mut text = line
         .split_ascii_whitespace()
         .nth(0)
         .unwrap()
         .chars()
         .collect::<Vec<char>>();
-    let nums = line
+    // Repeat 5 times
+    let orig = text.clone();
+    for _ in 0..4 {
+        text.push('?');
+        text.append(&mut orig.clone());
+    }
+    let mut nums = line
         .split_ascii_whitespace()
         .nth(1)
         .unwrap()
         .split(',')
-        .map(|x| x.parse::<u32>().unwrap())
-        .collect::<Vec<u32>>();
-    // println!("{:?}", nums);
+        .map(|x| x.parse::<usize>().unwrap())
+        .collect::<Vec<usize>>();
+    // Repeat 5 times
+    let orig = nums.clone();
+    for _ in 0..4 {
+        nums.append(&mut orig.clone());
+    }
     let res = count_ways(&mut text, &nums);
-    // println!("{:?}", text);
     return res;
 }
  
-fn count_ways(text: &mut Vec<char>, nums: &Vec<u32>) -> u32 {
-    count_ways_brute_force(text, nums, 0)
+fn count_ways(text: &mut Vec<char>, nums: &Vec<usize>) -> u64 {
+    let mut dp = vec![vec![None; nums.len()]; text.len()];
+    count_ways_dp(text, nums, 0, 0, &mut dp)
 }
  
-fn count_ways_brute_force(text: &mut Vec<char>, nums: &Vec<u32>, i: usize) -> u32 {
-    if i == text.len() {
-        return match is_valid(text, nums) {
-            true => 1,
-            false => 0,
-        };
+fn count_ways_dp(text: &mut Vec<char>, nums: &Vec<usize>, i: usize, j: usize, dp: &mut Vec<Vec<Option<u64>>>) -> u64 {
+    if i >= text.len() {  // EOF
+        if j >= nums.len() {  // All hashtags are in position
+            return 1;
+        }
+        return 0;  // Some hashtags left
     }
-    if !is_valid_partial(text, nums, i) { 
-        // println!("{:?}, {:?}, {}", text, nums, i);
-        return 0; 
+    if j < nums.len() {  // Memoization
+        if let Some(value) = dp[i][j] { return value; }
     }
-    if text[i] == '?' {
-        text[i] = '.';
-        let dot_count = count_ways_brute_force(text, nums, i+1);
-        text[i] = '#';
-        let hashtag_count = count_ways_brute_force(text, nums, i+1);
-        text[i] = '?';
-        return dot_count + hashtag_count;
-    } else {
-        return count_ways_brute_force(text, nums, i+1);
+    
+    let res = match text[i] {
+        '.' => count_ways_dp(text, nums, i+1, j, dp),
+        '#' => count_ways_dp_hashtag(text, nums, i, j, dp),
+        '?' => count_ways_dp(text, nums, i+1, j, dp) + count_ways_dp_hashtag(text, nums, i, j, dp),  // both . and #
+        _ => panic!(),
+    };
+    if j < nums.len() {
+        dp[i][j] = Some(res);
     }
+    return res;
 }
 
 
-fn is_valid_partial(text: &Vec<char>, nums: &Vec<u32>, i: usize) -> bool {
-    if i == 0 { return true; }
-    let pred_nums = text[..i]
-        .into_iter()
-        .collect::<String>()
-        .replace('.', " ")
-        .split_whitespace()
-        .map(|x| x.chars().count() as u32)
-        .collect::<Vec<u32>>();
-    if pred_nums.len() <= 1 { return true; }
-    if pred_nums.len() > nums.len() { return false; }
-    for i in 0..pred_nums.len() - 1 {
-        if pred_nums[i] != nums[i] { return false; }
+fn count_ways_dp_hashtag(text: &mut Vec<char>, nums: &Vec<usize>, i: usize, j: usize, dp: &mut Vec<Vec<Option<u64>>>) -> u64 {
+    if j >= nums.len() {  // No more hashtags
+        return 0;
     }
-    // println!("valid: {:?}, {:?}", text, nums);
-    return true;
-}
- 
- 
-fn is_valid(text: &Vec<char>, nums: &Vec<u32>) -> bool {
-    let pred_nums = text
-        .into_iter()
-        .collect::<String>()
-        .replace('.', " ")
-        .split_whitespace()
-        .map(|x| x.chars().count() as u32)
-        .collect::<Vec<u32>>();   
-    if pred_nums.len() != nums.len() { return false; }
-    for i in 0..nums.len() {
-        if pred_nums[i] != nums[i] { return false; }
+    if i + nums[j] > text.len() {  // Not enough room for hashtags
+        return 0;
     }
-    // println!("valid: {:?}, {:?}", text, nums);
-    return true;
+    for ii in i..i+nums[j] {
+        if text[ii] == '.' {  // Impossible to fit enough consecutive hashtags
+            return 0;
+        }
+    }
+    // EOF
+    if i + nums[j] == text.len() {
+        if j == nums.len() - 1 {
+            return 1;
+        }
+        return 0;
+    }
+    // Look that next character is not hashtag
+    if text[i + nums[j]] == '#' { return 0; }
+    count_ways_dp(text, nums, i + nums[j] + 1, j + 1, dp)
 }
+
