@@ -52,12 +52,17 @@ fn count_row_mirrors(board: &Vec<Vec<char>>) -> u64 {
 
 
 fn count_reflected_differences(board: &Vec<Vec<char>>, i: usize) -> bool {
+    let mut res = 0;
     for ii in (0..i+1).rev() {
-        if i+ii+1 < board.len() && board[i+ii+1] != board[i-ii] {
-            return false;
-        }        
+        if i+ii+1 < board.len() {
+            for j in 0..board[0].len() {
+                if board[i+ii+1][j] != board[i-ii][j] {
+                    res += 1;
+                }
+            }
+        }     
     }
-    true
+    res == 1
 }
 
 
