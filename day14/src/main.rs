@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use clap::Parser;
+use std::collections::HashMap;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, help_template = "\
@@ -26,17 +27,43 @@ fn main() -> io::Result<()>{
     for line in reader.lines() {
         board.push(line?.chars().collect());
     }
-    move_upward(&mut board);
-    // for row in board {
-    //     println!("{:?}", row.into_iter().collect::<String>());
-    // }
+    let initial_board = board.clone();
+    let mut rep = HashMap::<Vec<Vec<char>>, u32>::new();
+    rep.insert(board.clone(), 1);
+    for _ in 0..1000 {
+        move_cycle(&mut board);
+        let prev_len = rep.len();
+        rep.entry(board.clone()).and_modify(|counter| *counter += 1).or_insert(1);
+        if prev_len == rep.len() { break; }
+    }
+    let big_cycle = rep.len();
+    for _ in 0..big_cycle {
+        move_cycle(&mut board);
+        rep.entry(board.clone()).and_modify(|counter| *counter += 1).or_insert(1);
+    }
+    rep = rep.into_iter().filter(|(_, v)| *v > 1).collect();
+    let offset = big_cycle - rep.len();
+    let big_cycle = rep.len();
+    let residue = (1000000000 - offset) % big_cycle;
+    board = initial_board;
+    for _ in 0..offset + residue {
+        move_cycle(&mut board);
+    }
     let res = count_load(&board);
     println!("{}", res);
     Ok(())
 }
 
 
-fn move_upward(board: &mut Vec<Vec<char>>) {
+fn move_cycle(board: &mut Vec<Vec<char>>) {
+    move_north(board);
+    move_west(board);
+    move_south(board);
+    move_east(board);
+}
+
+
+fn move_north(board: &mut Vec<Vec<char>>) {
     let board_t = transpose(board);
     *board = transpose(
         &board_t
@@ -63,6 +90,94 @@ fn move_upward(board: &mut Vec<Vec<char>>) {
         )
         .collect::<Vec<Vec<char>>>()
     );
+}
+
+
+fn move_south(board: &mut Vec<Vec<char>>) {
+    let board_t = transpose(board);
+    *board = transpose(
+        &board_t
+        .into_iter()
+        .map(
+            |x| {
+                x
+                    .into_iter()
+                    .collect::<String>()
+                    .split('#')
+                    .map(|y| {
+                        (y.chars().into_iter().filter(|&z| z == 'O').count(), y.len())
+                    })
+                    .map(|(x, y)| {
+                        let left = vec!['.'; y - x].into_iter().collect::<String>();
+                        let right = vec!['O'; x].into_iter().collect::<String>();
+                        left + &right
+                    })
+                    .collect::<Vec<String>>()
+                    .join("#")
+                    .chars()
+                    .collect::<Vec<char>>()
+            }
+        )
+        .collect::<Vec<Vec<char>>>()
+    );
+}
+
+
+fn move_west(board: &mut Vec<Vec<char>>) {
+    let board_t = board.clone();
+    *board = 
+        board_t
+        .into_iter()
+        .map(
+            |x| {
+                x
+                    .into_iter()
+                    .collect::<String>()
+                    .split('#')
+                    .map(|y| {
+                        (y.chars().into_iter().filter(|&z| z == 'O').count(), y.len())
+                    })
+                    .map(|(x, y)| {
+                        let left = vec!['O'; x].into_iter().collect::<String>();
+                        let right = vec!['.'; y - x].into_iter().collect::<String>();
+                        left + &right
+                    })
+                    .collect::<Vec<String>>()
+                    .join("#")
+                    .chars()
+                    .collect::<Vec<char>>()
+            }
+        )
+        .collect::<Vec<Vec<char>>>();
+}
+
+
+fn move_east(board: &mut Vec<Vec<char>>) {
+    let board_t = board.clone();
+    *board = 
+        board_t
+        .into_iter()
+        .map(
+            |x| {
+                x
+                    .into_iter()
+                    .collect::<String>()
+                    .split('#')
+                    .map(|y| {
+                        (y.chars().into_iter().filter(|&z| z == 'O').count(), y.len())
+                    })
+                    .map(|(x, y)| {
+                        let left = vec!['.'; y - x].into_iter().collect::<String>();
+                        let right = vec!['O'; x].into_iter().collect::<String>();
+                        left + &right
+                    })
+                    .collect::<Vec<String>>()
+                    .join("#")
+                    .chars()
+                    .collect::<Vec<char>>()
+            }
+        )
+        .collect::<Vec<Vec<char>>>();
 }
 
 
