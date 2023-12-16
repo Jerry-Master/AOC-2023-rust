@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use clap::Parser;
 use std::collections::VecDeque;
+use std::cmp::max;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, help_template = "\
@@ -60,17 +61,34 @@ fn main() -> io::Result<()>{
                 .collect::<Vec<_>>()
         );
     }
-    let res = propagate(&mut board);
+    let mut res = 0;
+    let num_rows = board.len();
+    let num_cols = board[0].len();
+    for i in 0..num_rows {
+        // Left and Right
+        let tmp = propagate(&mut board, (i as i32, 0, Dir::Right));
+        res = max(res, tmp);
+        let tmp = propagate(&mut board, (i as i32, (num_cols - 1) as i32, Dir::Left));
+        res = max(res, tmp);
+    }
+    for j in 0..num_cols {
+        // Top and Bottom
+        let tmp = propagate(&mut board, (0, j as i32, Dir::Down));
+        res = max(res, tmp);
+        let tmp = propagate(&mut board, ((num_rows - 1) as i32, j as i32, Dir::Up));
+        res = max(res, tmp);
+    }
+    // let res = propagate(&mut board, (0, 0, Dir::Right));
     show_board(&board);
     println!("{}", res);
     Ok(())
 }
 
 
-fn propagate(board: &mut Vec<Vec<Tile>>) -> u32 {
+fn propagate(board: &mut Vec<Vec<Tile>>, start: (i32, i32, Dir)) -> u32 {
     let mut copy = vec![vec![vec![Dir::Left; 0]; board[0].len()]; board.len()];
     let mut rays = VecDeque::<(i32, i32, Dir)>::new();
-    rays.push_back((0, 0, Dir::Right));
+    rays.push_back(start);
     while let Some(ray) = rays.pop_front() {
         let (i, j, mut dir) = ray;
         if i < 0 || j < 0 || i >= board.len() as i32 || j >= board[0].len() as i32 { continue; }
