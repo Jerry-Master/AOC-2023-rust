@@ -71,10 +71,6 @@ impl Ord for Tile {
         // In case of a tie we compare positions - this step is necessary
         // to make implementations of `PartialEq` and `Ord` consistent.
         other.heat_loss.cmp(&self.heat_loss)
-            .then_with(|| self.i.cmp(&other.i)
-            .then_with(|| self.j.cmp(&other.j)
-            .then_with(|| other.steps.cmp(&self.steps))
-            .then_with(|| self.dir.cmp(&other.dir))))
     }
 }
 
@@ -88,9 +84,9 @@ impl PartialOrd for Tile {
 
 fn compute_distance(map: &Vec<Vec<u32>>) -> u32 {
     let mut queue = BinaryHeap::<Tile>::new();
-    queue.push(Tile { i: 0, j: 1, weight: map[0][1], steps: 2, dir: Dir::Right, heat_loss: map[0][1] });
-    queue.push(Tile { i: 1, j: 0, weight: map[1][0], steps: 2, dir: Dir::Down, heat_loss: map[1][0] });
-    let mut dists: Vec<Vec<Vec<Vec<Option<u32>>>>> = vec![vec![vec![vec![None; 3]; 4]; map[0].len()]; map.len()];
+    queue.push(Tile { i: 0, j: 1, weight: map[0][1], steps: 1, dir: Dir::Right, heat_loss: map[0][1] });
+    queue.push(Tile { i: 1, j: 0, weight: map[1][0], steps: 1, dir: Dir::Down, heat_loss: map[1][0] });
+    let mut dists: Vec<Vec<Vec<Vec<Option<u32>>>>> = vec![vec![vec![vec![None; 10]; 4]; map[0].len()]; map.len()];
     while let Some(tile) = queue.pop() {
         let idx = match tile.dir {
             Dir::Up => 0,
@@ -104,10 +100,10 @@ fn compute_distance(map: &Vec<Vec<u32>>) -> u32 {
             }
         }
         dists[tile.i as usize][tile.j as usize][idx][tile.steps as usize - 1] = Some(tile.heat_loss);
-        if tile.i == map.len() as i32 - 1 && tile.j == map[0].len() as i32 - 1 {
+        if tile.i == map.len() as i32 - 1 && tile.j == map[0].len() as i32 - 1 && tile.steps >= 4 {
             return tile.heat_loss;
         }
-        if tile.steps < 3 {
+        if tile.steps < 10 {
             let (i, j) = advance(tile.i, tile.j, tile.dir);
             if check(i, j, map) {
                 queue.push(Tile {
@@ -117,27 +113,29 @@ fn compute_distance(map: &Vec<Vec<u32>>) -> u32 {
                 });
             }
         } 
-        let (dir1, dir2) = match tile.dir {
-            Dir::Up => (Dir::Left, Dir::Right),
-            Dir::Down => (Dir::Left, Dir::Right),
-            Dir::Left => (Dir::Up, Dir::Down),
-            Dir::Right => (Dir::Up, Dir::Down),
-        };
-        let (i1, j1) = advance(tile.i, tile.j, dir1);
-        if check(i1, j1, map) {
-            queue.push(Tile {
-                i: i1, j: j1, weight: map[i1 as usize][j1 as usize],
-                steps: 1, dir: dir1,
-                heat_loss: tile.heat_loss + map[i1 as usize][j1 as usize]
-            });
-        }
-        let (i2, j2) = advance(tile.i, tile.j, dir2);
-        if check(i2, j2, map) {
-            queue.push(Tile { 
-                i: i2, j: j2, weight: map[i2 as usize][j2 as usize],
-                steps: 1, dir: dir2,
-                heat_loss: tile.heat_loss + map[i2 as usize][j2 as usize]
-            });
+        if tile.steps >= 4 {
+            let (dir1, dir2) = match tile.dir {
+                Dir::Up => (Dir::Left, Dir::Right),
+                Dir::Down => (Dir::Left, Dir::Right),
+                Dir::Left => (Dir::Up, Dir::Down),
+                Dir::Right => (Dir::Up, Dir::Down),
+            };
+            let (i1, j1) = advance(tile.i, tile.j, dir1);
+            if check(i1, j1, map) {
+                queue.push(Tile {
+                    i: i1, j: j1, weight: map[i1 as usize][j1 as usize],
+                    steps: 1, dir: dir1,
+                    heat_loss: tile.heat_loss + map[i1 as usize][j1 as usize]
+                });
+            }
+            let (i2, j2) = advance(tile.i, tile.j, dir2);
+            if check(i2, j2, map) {
+                queue.push(Tile { 
+                    i: i2, j: j2, weight: map[i2 as usize][j2 as usize],
+                    steps: 1, dir: dir2,
+                    heat_loss: tile.heat_loss + map[i2 as usize][j2 as usize]
+                });
+            }
         }
     }
     panic!();
