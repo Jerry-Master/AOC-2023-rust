@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
+use std::vec;
 use clap::Parser;
 use std::collections::VecDeque;
 
@@ -31,20 +32,47 @@ fn main() -> io::Result<()>{
     let file = File::open(args.input_path)?;
     let reader = BufReader::new(file);
 
-    let mut map = Vec::<Vec<char>>::new();
-    for line in reader.lines() {
-        let line = line?;
-        map.push(
-            line
-             .chars()
-             .collect()
-        );
+    // let mut map = Vec::<Vec<char>>::new();
+    // for line in reader.lines() {
+    //     let line = line?;
+    //     map.push(
+    //         line
+    //          .chars()
+    //          .collect()
+    //     );
+    // }
+    // let iters = 3;
+    // let start = get_start(&map, iters);
+    // mirror(&mut map, iters);
+    // walk(&mut map, start, 65+131+131+131);  // This gives the series of results: 3699, 33137, 91951, 180141 which form an ARIMA(1,2,0) with AR coeff=1
+    // // for row in map.iter() {
+    // //     println!("{}", row.iter().collect::<String>());
+    // // }
+    // let res = count(&map);
+    
+    // 26501365 = 202300 * 131 + 65
+    let mut x0: u64 = 3699;
+    let mut x1 = 33137;
+    let mut x2 = 91951;
+    let mut res = 0;
+    for _ in 0..202300-2 {
+        res = 3 * x2 - 3 * x1 + x0;
+        x0 = x1; x1 = x2; x2 = res;
     }
-    let start = get_start(&map);
-    walk(&mut map, start, 64);
-    let res = count(&map);
+
     println!("{}", res);
     Ok(())
+}
+
+
+fn mirror(map: &mut Vec<Vec<char>>, iters: usize) {
+    let mut new_map: Vec<Vec<char>> = vec![vec!['.'; map[0].len() * (2 * iters + 1)]; map.len() * (2 * iters + 1)];
+    for i in 0..new_map.len() {
+        for j in 0..new_map[0].len() {
+            new_map[i][j] = map[i % map.len()][j % map[0].len()];
+        }
+    }
+    *map = new_map;
 }
 
 
@@ -108,11 +136,11 @@ fn count(map: &Vec<Vec<char>>) -> i64 {
 }
 
 
-fn get_start(map: &Vec<Vec<char>>) -> (i64, i64) {
+fn get_start(map: &Vec<Vec<char>>, iters: usize) -> (i64, i64) {
     for i in 0..map.len() {
         for j in 0..map[0].len() {
             if map[i][j] == 'S' {
-                return (i as i64, j as i64);
+                return ((i + iters * map.len()) as i64, (j + iters * map[0].len()) as i64);
             }
         }
     }
