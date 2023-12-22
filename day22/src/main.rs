@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use clap::Parser;
 use std::cmp::{Ord, PartialOrd, Ordering, max};
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, help_template = "\
@@ -19,7 +19,7 @@ struct Args {
 }
 
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
 struct Brick {
     x0: u32,
     y0: u32,
@@ -65,36 +65,47 @@ fn main() -> io::Result<()>{
         bricks.push(parse(line));
     }
     bricks.sort();
-    let (graph, inv_graph) = construct_tree(bricks);
+    let (graph, inv_graph) = construct_tree(&bricks);
     // println!("{:?}", graph);
-    let res = count_removable(graph, inv_graph);
+    let res = count_removable(graph, inv_graph, bricks);
     println!("{}", res);
     Ok(())
 }
 
 
-fn count_removable(graph: Vec<HashSet<usize>>, inv_graph: Vec<HashSet<usize>>) -> u32 {
-    let mut count = 0;
-    for node_children in graph.iter() {
-        let mut removable = true;
-        for node_child in node_children {
-            if inv_graph[*node_child].len() == 1 {
-                removable = false;
-                break;
+fn count_removable(graph: Vec<HashSet<usize>>, inv_graph: Vec<HashSet<usize>>, bricks: Vec<Brick>) -> usize {
+    let mut res = 0;
+    for node in 0..graph.len() {
+        let mut fallen = HashSet::<usize>::new();
+        fallen.insert(node);
+        let mut queue = VecDeque::<usize>::new();
+        let mut vis: Vec<bool> = vec![false; bricks.len()];
+        queue.push_back(node);
+        while let Some(next) = queue.pop_front() {
+            if vis[next] { continue; }
+            vis[next] = true;
+            let mut children = graph[next].iter().map(|&x| (bricks[x], x)).collect::<Vec<_>>();
+            children.sort();
+            for (_, child) in children.iter() {
+                // println!("{}, {}, {:?}, {:?}", node, child, inv_graph[*child], fallen);
+                if inv_graph[*child].difference(&fallen).count() == 0 {
+                    fallen.insert(*child);
+                    queue.push_back(*child);
+                }
             }
         }
-        if removable {
-            count += 1;
-        }
+        res += fallen.len() - 1;
+        // println!("{}, {}", node, fallen.len() - 1);
     }
-    count
+    res
 }
 
 
-fn construct_tree(bricks: Vec<Brick>) -> (Vec<HashSet<usize>>, Vec<HashSet<usize>>) {
+fn construct_tree(bricks: &Vec<Brick>) -> (Vec<HashSet<usize>>, Vec<HashSet<usize>>) {
     // println!("{:?}", bricks);
     let mut fallen_bricks: Vec<Brick> = vec![];
-    for mut brick in bricks {
+    for brick in bricks {
+        let mut brick = brick.clone();
         let mut max_z1 = 0;
         for fallen_brick in fallen_bricks.iter() {
             if fallen_brick.supports(&brick) {
